@@ -1,100 +1,111 @@
-# News Sentiment Analysis Project with Microsoft Fabric
+# Bing News Sentiment Analysis with Microsoft Fabric
 
-## Overview
+## Project Overview
 
-This project implements an end-to-end news ingestion, transformation, sentiment analysis, and reporting pipeline using **Microsoft Fabric** services. It leverages the **Lakehouse**, **Synapse Data Science**, **Power BI**, and **Data Activator** within Fabric to create a scalable, automated solution for real-time news sentiment insights.
+This project builds an end-to-end news ingestion, transformation, sentiment analysis, and reporting pipeline using **Microsoft Fabric** services. It integrates Bing News data via the Bing Search API (or similar sources), transforms and analyzes the data, and delivers actionable insights through Power BI dashboards and real-time alerts.
 
----
-
-## Architecture and Components
-
-### 1. Incremental Data Load (Type 1 Slowly Changing Dimension)
-
-- We utilize a **Type 1** data warehouse approach for incremental data loading.
-- New data is merged into existing Delta tables in the **Lakehouse** using a SQL `MERGE` operation:
-  - If a record with the same identifier (URL) exists and differs, it is updated.
-  - If no matching record exists, the new record is inserted.
-- This logic is embedded inside a `try-except` block in PySpark within Fabric to handle table creation and merging dynamically.
-- The incremental load is implemented using **Delta Lake** tables in Fabric's Lakehouse.
+The solution leverages **Lakehouse (Delta Lake)**, **Synapse Data Science**, **Power BI with Fabric schematic models**, **Fabric Pipelines**, and **Data Activator** to provide a scalable, automated, and governed analytics platform.
 
 ---
 
-### 2. Sentiment Analysis with Synapse Data Science
+## Architecture and Workflow
 
-- Sentiment analysis is performed on the news **description** column using a **pre-trained model** available in the **Synapse data science tool** in Fabric.
-- We create a notebook named **`news_sentiment_analysis`**, and load data directly from the Lakehouse Delta table (`tbl_latest_news`).
-- The analysis uses the `AnalyzeText` service from the **Synapse ML** library, specifying `SentimentAnalysis` as the analysis kind.
-- The sentiment results are extracted from JSON responses and appended as a new column.
-- The resulting data is saved back to the Lakehouse as a Delta table (`tbl_sentiment_analysis`) using the same Type 1 merge logic.
+### 1. Data Ingestion
+
+- Configure Bing Search API (or equivalent) in Azure.
+- Use Fabric Data Factory pipelines to pull the latest news JSON data via REST API.
+- Store the raw JSON files in a Fabric Lakehouse (Delta Lake).
+- Schedule pipeline runs for automated periodic ingestion.
+
+### 2. Data Transformation
+
+- Use Synapse Spark Notebooks to parse and clean raw JSON data.
+- Extract key fields (title, description, category, url, image, provider, datePublished).
+- Filter and handle inconsistent data.
+- Convert date formats and save clean data as Delta tables in the Lakehouse.
+
+### 3. Incremental Data Load (Type 1 SCD)
+
+- Implement incremental loads via PySpark `MERGE` statements on Delta tables.
+- Update existing records by matching on unique URL identifiers.
+- Insert new records if no match exists.
+- Manage schema and handle exceptions dynamically.
+
+### 4. Sentiment Analysis
+
+- Run Synapse Data Science notebooks using pre-trained models (`AnalyzeText` API) for sentiment classification on news descriptions.
+- Append sentiment labels (positive, negative, neutral) to the data.
+- Save sentiment-enriched data back to Delta Lake with incremental merge.
+
+### 5. Power BI Reporting
+
+- Create Fabric schematic datasets connecting to Lakehouse Delta tables.
+- Build interactive dashboards with filters, slicers, and custom sentiment metrics.
+- Format URLs as clickable links.
+- Provide daily refreshed visuals for sentiment distributions and recent news.
+
+### 6. Pipeline Orchestration
+
+- Build and automate the entire workflow in Fabric Pipelines.
+- Use parameters to customize search queries (e.g., topics or regions).
+- Include error handling and data schema fixes.
+- Schedule pipeline runs for regular updates.
+
+### 7. Alerts and Monitoring
+
+- Utilize Data Activator to define alert conditions based on sentiment thresholds.
+- Send alerts via Microsoft Teams or Email.
+- Test alerts and monitor via Fabric workspace tools.
 
 ---
 
-### 3. Power BI Reporting with Fabric Schematic Models
+## Key Microsoft Fabric Components Used
 
-- We build interactive dashboards in **Power BI** connected via **Fabric schematic models** for:
-  - Secure data access governance.
-  - Selective loading of tables rather than the entire Lakehouse dataset.
-- The schematic model is named (e.g., `bing-news-dashboard-dataset`) and includes the sentiment analysis table.
-- URLs are formatted as clickable web URLs in Power BI by adjusting the data type in the model.
-- Filters and slicers (e.g., by year) and "Top N" filters are configured for recent news display.
-- Custom measures are created in Power BI to calculate positive, neutral, and negative sentiment percentages dynamically.
-- Visuals such as cards display the percentage sentiment metrics updated daily.
+- **Lakehouse (Delta Lake):** For scalable, ACID-compliant data storage and incremental merges.
+- **Synapse Data Science:** For applying pre-trained machine learning models on Spark data.
+- **Power BI with Fabric Schematic Models:** For secure, governed, and performant analytics reporting.
+- **Data Factory Pipelines:** For orchestrating data ingestion, transformation, and analysis workflows.
+- **Data Activator:** For real-time alerts and notifications on business-critical metrics.
 
 ---
 
-### 4. Pipeline Orchestration in Fabric
+## How to Get Started
 
-- Pipelines automate the entire workflow:
-  - Data ingestion from API to Lakehouse.
-  - Data transformation and cleaning.
-  - Sentiment analysis notebook execution.
-- Pipelines are parameterized to allow dynamic search terms (e.g., `latest news`, `football`, `movies`).
-- Schedules enable automated daily runs at specified times.
-- Pipelines include error handling and schema management (e.g., date formatting fixes for `datePublished`).
+1. **Set up your Azure environment:**
+   - Create resource group and API resources.
+   - Acquire Bing API keys and endpoints.
 
----
+2. **Create Microsoft Fabric workspace:**
+   - Build Lakehouse for raw and processed data.
+   - Configure Data Factory pipelines for data ingestion.
+   - Develop Synapse notebooks for transformation and sentiment analysis.
 
-### 5. Alerts with Data Activator
+3. **Configure Power BI:**
+   - Create schematic datasets connecting to Lakehouse tables.
+   - Design dashboards with sentiment insights.
 
-- **Data Activator** in Fabric is used to create real-time alerts on sentiment changes in Power BI dashboards.
-- Alerts trigger on specific conditions (e.g., positive sentiment exceeds 6%).
-- Notifications can be delivered to Outlook, Teams, or email.
-- Test alerts validate the setup before live monitoring.
-- Activators are managed and monitored within the Fabric workspace.
+4. **Build and schedule Fabric Pipelines:**
+   - Orchestrate the entire process from ingestion to reporting.
+   - Parameterize and schedule for daily runs.
 
----
+5. **Set up Data Activator alerts:**
+   - Define alert rules on Power BI dataset metrics.
+   - Configure notification channels (Teams, email).
 
-## Key Fabric Features Utilized
-
-- **Lakehouse** (Delta Lake) for scalable data storage and incremental merges.
-- **Synapse Data Science** for applying pre-trained models on Lakehouse data without extensive model training overhead.
-- **Power BI** integrated with Fabric schematic models for advanced reporting, data security, and governance.
-- **Pipeline Orchestration** within Fabric for automated, parameter-driven data workflows.
-- **Data Activator** for setting up automated, actionable alerts linked to Power BI reports.
+6. **Monitor and maintain:**
+   - Track pipeline executions and alerts in Fabric workspace.
+   - Tune and expand sentiment models and dashboards as needed.
 
 ---
 
 ## Summary
 
-This project demonstrates a comprehensive data engineering and data science pipeline leveraging Microsoft Fabric’s end-to-end capabilities:
+This project demonstrates a robust, scalable solution for real-time news sentiment analytics by combining:
 
-- Efficient **incremental loading** and **data management** using Delta Lake in Fabric Lakehouse.
-- Use of **pre-trained sentiment analysis models** via Synapse Data Science notebooks.
-- Dynamic, governed **reporting dashboards** using Power BI schematic models.
-- Robust **orchestration and automation** of data workflows with Fabric Pipelines.
-- Real-time **business alerts** powered by Data Activator.
-
-Together, these components deliver a seamless, scalable solution for extracting actionable insights from news data with sentiment analysis and real-time monitoring.
-
----
-
-## How to Use
-
-1. Clone the repository.
-2. Deploy the pipeline and notebooks in your Microsoft Fabric workspace.
-3. Configure Power BI reports with schematic models for dashboarding.
-4. Set up Data Activator alerts as needed.
-5. Schedule pipelines to run automatically with desired parameters.
-6. Monitor pipeline runs and alerts via the Fabric monitoring tools.
+- Efficient data ingestion and incremental Delta Lake merges.
+- Pre-trained sentiment models executed in Synapse Data Science.
+- Secure, dynamic Power BI reporting using Fabric schematic models.
+- Automated pipelines for seamless end-to-end workflow.
+- Real-time alerting with Data Activator for proactive insights.
 
 ---
